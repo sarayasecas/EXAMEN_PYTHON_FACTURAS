@@ -1,0 +1,20 @@
+======================================================================
+LOG DE PROCESAMIENTO DE FACTURAS - 19/11/2026 17:46:35
+Carpeta: C:\Users\saray\EXAMEN_PYTHON_FACTURAS\facturas
+======================================================================
+Facturas leídas:     20
+Facturas procesadas: 20
+Facturas rechazadas: 0
+SQL generado:        sí
+
+FACTURAS NO PROCESADAS
+----------------------------------------------------------------------
+(ninguna)
+
+AVISOS
+----------------------------------------------------------------------
+(ninguno)
+
+DUPLICADOS EVITADOS (reutilizados en vez de insertarse otra vez)
+----------------------------------------------------------------------
+Empleados: 13  |  Productos: 137  |  Sucursales: 19

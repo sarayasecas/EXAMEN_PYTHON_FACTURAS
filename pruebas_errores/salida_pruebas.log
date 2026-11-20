@@ -1,0 +1,26 @@
+======================================================================
+LOG DE PROCESAMIENTO DE FACTURAS - 19/11/2026 17:39:59
+Carpeta: C:\Users\saray\EXAMEN_PYTHON_FACTURAS\pruebas_errores
+======================================================================
+Facturas leídas:     28
+Facturas procesadas: 21
+Facturas rechazadas: 7
+SQL generado:        sí
+
+FACTURAS NO PROCESADAS
+----------------------------------------------------------------------
+[ERROR] factura_901_error_vacio.txt: archivo vacío
+[ERROR] factura_902_error_cantidad_no_numerica.txt: línea 16: la cantidad 'tres' del producto 'Sal Fina 1kg' no es numérica
+[ERROR] factura_903_error_falta_total.txt: formato incorrecto, faltan datos: TOTAL A PAGAR
+[ERROR] factura_904_error_ticket_repetido.txt: número de ticket 20010007 repetido (ya está en factura_007.txt)
+[ERROR] factura_905_error_cajero_repetido_otro_nombre.txt: código de cajero 015 repetido con otro nombre: 'Pedro Sánchez' (ya registrado como 'Juan Pérez')
+[ERROR] factura_906_error_importes_no_cuadran.txt: la suma de las líneas (25.42) no coincide con el SUBTOTAL (29.99)
+[ERROR] factura_908_error_fecha_imposible.txt: línea 6: fecha u hora imposible '31/02/2025 17:01'
+
+AVISOS
+----------------------------------------------------------------------
+(ninguno)
+
+DUPLICADOS EVITADOS (reutilizados en vez de insertarse otra vez)
+----------------------------------------------------------------------
+Empleados: 14  |  Productos: 143  |  Sucursales: 20

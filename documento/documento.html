@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Documento · Facturas a SQL</title>
+<style>
+@page { size: A4; margin: 14mm 15mm 16mm; }
+:root { --navy:#1f3a5f; --blue:#2f6db3; --soft:#eef3fa; --ink:#1d2733; --mut:#5a6878; --red:#b33a3a; --green:#2e8b57; }
+* { box-sizing: border-box; }
+body { font-family: "Segoe UI", Arial, sans-serif; color: var(--ink); font-size: 10.5pt; line-height: 1.45; margin: 0; background:#fff; }
+h1 { font-size: 24pt; margin: 0 0 4px; color:#fff; }
+h2 { font-size: 14.5pt; color: var(--navy); border-bottom: 2px solid var(--blue); padding-bottom: 4px; margin: 22px 0 10px; break-after: avoid; }
+h2 .n { display:inline-block; background: var(--blue); color:#fff; font-size: 11pt; width: 24px; text-align:center; margin-right:8px; border-radius:3px; }
+h3 { font-size: 11.5pt; color: var(--blue); margin: 14px 0 6px; break-after: avoid; }
+p { margin: 6px 0; }
+.small { font-size: 9.5pt; color: var(--mut); }
+.portada { background: var(--navy); color:#fff; padding: 22px 26px; border-radius: 4px; border-bottom: 5px solid var(--blue); }
+.portada .kicker { font-size: 9pt; font-weight:700; letter-spacing:.06em; color:#a9c6ea; }
+.portada .sub { color:#d6e2f2; font-size: 11pt; }
+.meta { display:flex; gap:8px; margin: 10px 0 4px; }
+.meta div { flex:1; background: var(--soft); padding: 8px 10px; border-radius: 3px; text-align:center; }
+.meta b { display:block; font-size: 16pt; color: var(--blue); }
+.meta span { font-size: 8.5pt; color: var(--mut); }
+table { border-collapse: collapse; width: 100%; font-size: 9.5pt; margin: 6px 0; break-inside: avoid; }
+th { background: var(--navy); color:#fff; text-align:left; padding: 6px 8px; }
+td { padding: 5px 8px; border-bottom: 1px solid #dde4ee; vertical-align: top; }
+tr:nth-child(even) td { background: #f6f9fc; }
+code { font-family: Consolas, monospace; font-size: 9pt; background: var(--soft); padding: 0 3px; border-radius: 2px; }
+pre { font-family: Consolas, monospace; font-size: 8.2pt; line-height: 1.38; margin: 6px 0; white-space: pre-wrap; word-break: break-word; }
+pre.code { background: #f6f8fb; border: 1px solid #dde4ee; border-left: 4px solid var(--blue); padding: 8px 10px; }
+pre.ticket { background:#fffdf6; border:1px dashed #c9b98a; padding: 8px 8px; font-size: 7.1pt; white-space: pre; overflow: hidden; }
+.duo pre.code { font-size: 7.4pt; }
+.sql .k { color:#7a2ea8; font-weight:700; } .sql .s { color:#1a7f37; } .sql .c { color:#7b8794; font-style: italic; }
+.duo { display:grid; grid-template-columns: 0.82fr 1.18fr; gap: 12px; align-items:start; break-inside: avoid; }
+.figura { break-inside: avoid; margin: 8px 0; }
+.figura img { width:100%; border:1px solid #dde4ee; border-radius:3px; }
+.figura .cap { font-size: 8.5pt; color: var(--mut); text-align:center; margin-top: 3px; }
+.flow { display:flex; gap:6px; margin: 8px 0; break-inside: avoid; }
+.flow div { flex:1; color:#fff; padding: 8px; border-radius: 3px; font-size: 9pt; text-align:center; }
+.flow b { display:block; font-size: 10pt; }
+.box { background: var(--soft); border-left: 4px solid var(--blue); padding: 8px 12px; margin: 8px 0; break-inside: avoid; }
+.box.warn { background:#fff7e6; border-color:#d99a00; }
+.term { background:#012456; border-radius: 6px; overflow:hidden; margin: 8px 0; break-inside: avoid; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+.term-bar { background:#e9edf2; padding: 5px 10px; font-size: 8.5pt; color:#333; display:flex; gap:5px; align-items:center; }
+.term-bar span { width:9px; height:9px; border-radius:50%; background:#c4cbd4; display:inline-block; }
+.term-bar b { margin-left: 8px; font-weight:600; }
+.term pre { color:#eeedf0; padding: 8px 12px; margin:0; font-size: 8pt; }
+.term .ps { color:#f0e68c; } .term .err { color:#ff8b8b; } .term .ok { color:#8fe3a8; }
+.pb { break-before: page; }
+.fn td:first-child { font-family: Consolas, monospace; white-space: nowrap; color: var(--navy); font-weight: 600; }
+</style></head><body>
+
+<div class="portada">
+  <div class="kicker">EXAMEN DE PYTHON · MINERÍA DE DATOS DE FACTURAS</div>
+  <h1>De tickets .txt a SQL</h1>
+  <div class="sub">Documentación del script <b>build_insert_from_tickets.py</b> · Alumno/a: Saray Rodríguez</div>
+</div>
+
+<div class="meta">
+  <div><b>20</b><span>facturas .txt procesadas</span></div>
+  <div><b>7</b><span>tablas (6 mínimas + 1 extra)</span></div>
+  <div><b>157</b><span>líneas de ticket insertadas</span></div>
+  <div><b>8</b><span>validaciones implementadas</span></div>
+  <div><b>+1</b><span>log de errores (extra)</span></div>
+</div>
+
+<h2><span class="n">1</span>Objetivo</h2>
+<p>El objetivo es automatizar la carga de 20 tickets de supermercado en una base de datos relacional. El script
+<code>build_insert_from_tickets.py</code> lee todos los <code>.txt</code> de una carpeta, extrae sus datos (tienda,
+fecha, cajero, número de ticket, productos, subtotal, IVA, total y forma de pago), los valida y genera
+<code>insertUnderlineTickets.sql</code>, un script listo para importar en un gestor de bases de datos. Sin insertar dos veces el mismo cajero ni el mismo producto,
+y dejando en un log las facturas que no se han podido procesar y el motivo.</p>
+<div class="box"><b>Ejecución:</b> <code>python build_insert_from_tickets.py facturas/</code><br>
+<span class="small">Opciones: <code>-o</code> archivo SQL de salida · <code>--log</code> archivo de log ·
+<code>--estricto</code> no generar el SQL si hay errores · <code>--solo-inserts</code> sin CREATE TABLE.
+Requiere Python 3.10 o superior; solo usa la biblioteca estándar.</span></div>
+
+<h2><span class="n">2</span>Entregables</h2>
+<table>
+<tr><th style="width:34%">Archivo</th><th>Contenido</th></tr>
+<tr><td><code>facturas/</code></td><td>Las 20 facturas originales (<code>factura_001.txt</code> … <code>factura_020.txt</code>).</td></tr>
+<tr><td><code>build_insert_from_tickets.py</code></td><td>Script en Python (solo biblioteca estándar, sin dependencias externas).</td></tr>
+<tr><td><code>insertUnderlineTickets.sql</code></td><td>Script generado: <code>CREATE TABLE</code> + <code>INSERT</code> de las 7 tablas dentro de una transacción.</td></tr>
+<tr><td><code>errores_tickets.log</code></td><td>Log de facturas no procesadas y su motivo (extra para el 10).</td></tr>
+<tr><td><code>diagrama/diagrama_bd.png / .pdf</code></td><td>Diagrama entidad-relación del modelo.</td></tr>
+<tr><td><code>pruebas_errores/</code></td><td>Las 20 facturas + 8 de prueba (7 con errores provocados y 1 con un producto escrito en mayúsculas), para demostrar las validaciones.</td></tr>
+</table>
+
+<h2 class="pb"><span class="n">3</span>Modelo de base de datos</h2>
+<p>Analizando los tickets se identifican las entidades que se repiten entre facturas (tienda, cajero, producto,
+forma de pago) y las que son propias de cada factura (cabecera, líneas y pago). Las primeras se separan en tablas de
+catálogo para no guardar el mismo dato varias veces (normalización), y las segundas las referencian mediante claves foráneas.</p>
+<div class="figura"><img src="../diagrama/diagrama_bd.png" alt="Diagrama entidad-relación"><div class="cap">Figura 1 · Diagrama entidad-relación (notación pata de gallo)</div></div>
+
+<table style="break-inside:auto">
+<tr><th style="width:17%">Tabla</th><th style="width:28%">Clave</th><th>Decisión de diseño</th></tr>
+<tr><td><b>sucursal</b></td><td>PK <code>id_sucursal</code> · UQ <code>cif</code></td><td>Datos de la cabecera del ticket. El CIF identifica la tienda y es único; la dirección se separa en dirección y ciudad.</td></tr>
+<tr><td><b>empleado</b></td><td>PK <code>codigo_empleado</code></td><td>Se usa el código del cajero que ya trae el ticket (clave natural), así no puede repetirse.</td></tr>
+<tr><td><b>producto</b></td><td>PK <code>id_producto</code> · UQ <code>descripcion</code></td><td>Catálogo sin descripciones repetidas. <code>unidad_medida</code> distingue productos a granel (kg) de unidades.</td></tr>
+<tr><td><b>ticket</b></td><td>PK <code>numero_ticket</code> · FK sucursal, empleado</td><td>Cabecera: fecha, hora, subtotal, % de IVA, IVA y total.</td></tr>
+<tr><td><b>ticket_linea</b></td><td>PK (<code>numero_ticket</code>, <code>num_linea</code>) · FK producto</td><td>Una fila por producto comprado. Guarda cantidad (<code>DECIMAL(10,3)</code> por los kg), precio unitario e importe.
+El precio va en la línea y no en el producto porque puede cambiar entre tickets (en los productos a granel varía un céntimo por redondeo).</td></tr>
+<tr><td><b>pago</b></td><td>PK <code>id_pago</code> · UQ <code>numero_ticket</code></td><td>Importe pagado y nº de autorización (solo con tarjeta; <code>NULL</code> en efectivo). Relación 1:1 con ticket.</td></tr>
+<tr><td><b>metodo_pago</b> <span class="small">(extra)</span></td><td>PK <code>id_metodo_pago</code> · UQ <code>nombre</code></td><td>Tabla añadida: TARJETA / EFECTIVO se guardan una sola vez en lugar de repetirse como texto en cada pago.</td></tr>
+</table>
+
+<h2><span class="n">4</span>Paso de una factura a SQL (a mano)</h2>
+<p>Antes de programar se tradujo una factura a mano para entender qué dato va a cada tabla. Ejemplo con <code>factura_002.txt</code>:</p>
+<div class="duo">
+<pre class="ticket">          SUPERMERCADOS EL AHORRO
+        Av. Principal #123 - Madrid
+         CIF: B12345678  Tel: 910123456
+
+------------------------------------------------
+Fecha: 12/09/2025        Hora: 18:26
+Cajero: 033 - Laura García
+Ticket: 20010002
+------------------------------------------------
+CANT  DESCRIPCIÓN                  IMPORTE
+------------------------------------------------
+  0.500 Manzana Golden (kg)               0.62 €
+  1   Pechuga de Pollo (kg)             6.20 €
+  2   Sal Fina 1kg                      1.00 €
+  1.250 Cebolla (kg)                      1.38 €
+  1   Huevos Camperos 12u               3.10 €
+  1.500 Pimiento Rojo (kg)                3.60 €
+  2   Queso Manchego 250g               8.40 €
+  1   Café Molido 250g                  3.80 €
+------------------------------------------------
+SUBTOTAL                        28.10 €
+IVA (21%)                        5.90 €
+------------------------------------------------
+TOTAL A PAGAR                   34.00 €
+------------------------------------------------
+
+FORMA DE PAGO: EFECTIVO
+------------------------------------------------
+
+        ¡GRACIAS POR SU COMPRA!
+     Conserve su ticket para cambios</pre>
+<div>
+<p class="small">Cabecera: <code>Fecha 12/09/2025 18:26</code>, <code>Cajero 033 - Laura García</code>, <code>Ticket 20010002</code>.
+Pago en EFECTIVO (sin autorización).</p>
+<pre class="code sql"><span class="c">-- sucursal y metodo_pago: ya existen (id 1 y 2), no se repiten</span>
+<span class="c">-- empleado 033 Laura García: se inserta solo la primera vez que aparece</span>
+<span class="k">INSERT INTO</span> empleado (codigo_empleado, nombre) <span class="k">VALUES</span> (<span class="s">&#x27;033&#x27;</span>, <span class="s">&#x27;Laura García&#x27;</span>);
+
+<span class="c">-- ticket (cabecera)</span>
+<span class="k">INSERT INTO</span> ticket (numero_ticket, fecha, hora, id_sucursal, codigo_empleado,
+                    subtotal, porcentaje_iva, iva, total) <span class="k">VALUES</span>
+    (<span class="s">&#x27;20010002&#x27;</span>, <span class="s">&#x27;2025-09-12&#x27;</span>, <span class="s">&#x27;18:26:00&#x27;</span>, 1, <span class="s">&#x27;033&#x27;</span>, 28.10, 21, 5.90, 34.00);
+
+<span class="c">-- ticket_linea: una fila por producto (id_producto del catálogo, sin duplicar)</span>
+<span class="k">INSERT INTO</span> ticket_linea (numero_ticket, num_linea, id_producto, cantidad,
+                          precio_unitario, importe) <span class="k">VALUES</span>
+    (<span class="s">&#x27;20010002&#x27;</span>, 1, 6, 0.500, 1.24, 0.62),
+    (<span class="s">&#x27;20010002&#x27;</span>, 2, 7, 1, 6.20, 6.20),
+    (<span class="s">&#x27;20010002&#x27;</span>, 3, 5, 2, 0.50, 1.00),
+    (<span class="s">&#x27;20010002&#x27;</span>, 4, 8, 1.250, 1.10, 1.38),
+    (<span class="s">&#x27;20010002&#x27;</span>, 5, 9, 1, 3.10, 3.10),
+    (<span class="s">&#x27;20010002&#x27;</span>, 6, 10, 1.500, 2.40, 3.60),
+    (<span class="s">&#x27;20010002&#x27;</span>, 7, 11, 2, 4.20, 8.40),
+    (<span class="s">&#x27;20010002&#x27;</span>, 8, 2, 1, 3.80, 3.80);
+
+<span class="c">-- pago</span>
+<span class="k">INSERT INTO</span> pago (id_pago, numero_ticket, id_metodo_pago, importe, autorizacion) <span class="k">VALUES</span>
+    (2, <span class="s">&#x27;20010002&#x27;</span>, 2, 34.00, NULL);</pre></div>
+</div>
+<p class="small">El precio unitario no viene en el ticket: se calcula como importe ÷ cantidad (p. ej. 0.62 € ÷ 0.500 kg = 1.24 €/kg).</p>
+
+<h2><span class="n">5</span>Lógica del programa</h2>
+<div class="flow">
+  <div style="background:#1f3a5f"><b>ENTRADA</b>facturas/*.txt</div>
+  <div style="background:#2f6db3"><b>EXTRAER</b>parse_ticket()</div>
+  <div style="background:#2f6db3"><b>TRANSFORMAR</b>validar + Catalogo</div>
+  <div style="background:#2e8b57"><b>CARGAR</b>.sql + .log</div>
+</div>
+<h3>Extraer: lectura línea por línea con una máquina de estados</h3>
+<p>Cada factura se lee línea por línea. El programa lleva un <b>estado</b> que indica en qué parte del ticket está, y
+<b>cada raya separadora <code>------</code> lo hace avanzar</b> a la sección siguiente:</p>
+<p style="text-align:center"><code>CABECERA</code> → <code>DATOS</code> → <code>ENCABEZADO_LINEAS</code> → <code>LINEAS</code> → <code>TOTALES</code> → <code>PAGO</code> → <code>PIE</code></p>
+<p>En cada estado solo se aceptan las líneas que tocan, reconocidas con <b>expresiones regulares</b>
+(p. ej. <code>^Cajero:\s*(?P&lt;codigo&gt;\d+)\s*-\s*(?P&lt;nombre&gt;.+)</code>). Una línea inesperada se rechaza
+indicando su número. La cantidad de cada producto se captura como texto para poder comprobar después si es numérica y dar un mensaje claro.</p>
+
+<h3>Transformar: validación y control de duplicados</h3>
+<p>La clase <code>Catalogo</code> acumula las entidades únicas usando diccionarios: cajeros por código, productos por
+descripción normalizada (sin distinguir mayúsculas ni espacios), sucursales por CIF y tickets por número. Si un dato ya
+existe se <b>reutiliza su id</b> en lugar de insertarlo otra vez. Una factura con errores se rechaza <b>entera</b>
+(no se carga nada de ella) y el programa continúa con las demás.</p>
+
+<h3>Cargar: generación del SQL y del log</h3>
+<p>Se escriben primero los <code>CREATE TABLE</code> y después los <code>INSERT</code> en orden de dependencias
+(primero las tablas referenciadas). Para optimizar, cada tabla usa <b>un único INSERT con varias filas</b> y todo va dentro
+de <code>BEGIN; … COMMIT;</code>. Los textos se escapan (<code>'</code> → <code>''</code>) y los importes usan
+<code>Decimal</code> para evitar errores de redondeo de los <code>float</code>.</p>
+
+<table class="fn">
+<tr><th style="width:32%">Función</th><th>Qué hace</th></tr>
+<tr><td>main()</td><td>Lee los argumentos (<code>carpeta</code>, <code>-o</code>, <code>--log</code>, <code>--estricto</code>, <code>--solo-inserts</code>) y controla los errores fatales.</td></tr>
+<tr><td>generar_sql_para_carpeta()</td><td>Proceso completo: procesa la carpeta, escribe el .sql y el log, muestra el resumen y devuelve el código de salida.</td></tr>
+<tr><td>procesar_carpeta()</td><td>Recorre los .txt en orden, llama a <code>parse_ticket()</code> y al catálogo, y separa facturas válidas y rechazadas.</td></tr>
+<tr><td>parse_ticket()</td><td>Máquina de estados que extrae los datos de una factura.</td></tr>
+<tr><td>validar_ticket()</td><td>Comprueba que no falten datos y que los importes cuadren.</td></tr>
+<tr><td>Catalogo.comprobar_conflictos() / agregar()</td><td>Detecta duplicados contra lo ya cargado y registra las entidades nuevas sin repetir.</td></tr>
+<tr><td>generar_sql() / insert_multifila()</td><td>Construyen el texto del script SQL.</td></tr>
+<tr><td>escribir_log()</td><td>Escribe el log con las facturas rechazadas, los avisos y los duplicados evitados.</td></tr>
+</table>
+
+<h2 class="pb"><span class="n">6</span>Validaciones aplicadas</h2>
+<table>
+<tr><th style="width:27%">Validación</th><th style="width:38%">Cómo se detecta</th><th>Resultado</th></tr>
+<tr><td><b>Archivo vacío</b></td><td>Ninguna línea con contenido.</td><td>Se rechaza: «archivo vacío».</td></tr>
+<tr><td><b>Formato incorrecto</b></td><td>Línea no reconocida en su sección, o faltan datos obligatorios (fecha, cajero, nº ticket, totales, forma de pago, líneas).</td><td>Se rechaza indicando la línea o los datos que faltan.</td></tr>
+<tr><td><b>Cantidad no numérica</b></td><td>La cantidad no cumple <code>^\d+([.,]\d+)?$</code> o es ≤ 0.</td><td>Se rechaza: «la cantidad 'tres' del producto … no es numérica».</td></tr>
+<tr><td><b>Cajero repetido</b></td><td>Diccionario por código. Mismo código y nombre → se reutiliza. Mismo código con otro nombre → conflicto.</td><td>Sin duplicados en <code>empleado</code>; el conflicto se rechaza.</td></tr>
+<tr><td><b>Producto duplicado</b></td><td>Descripción normalizada (minúsculas y espacios): «CAFÉ&nbsp; MOLIDO 250G» = «Café Molido 250g».</td><td>Se reutiliza el <code>id_producto</code> existente.</td></tr>
+<tr><td><b>Ticket repetido</b></td><td>Número de ticket ya cargado.</td><td>Se rechaza indicando en qué archivo estaba.</td></tr>
+<tr><td><b>Importes que no cuadran</b></td><td>Suma de líneas ≠ subtotal, IVA ≠ % del subtotal o subtotal + IVA ≠ total (tolerancia 0.01 €).</td><td>Se rechaza mostrando ambos valores.</td></tr>
+<tr><td><b>Fecha imposible</b></td><td><code>datetime.strptime</code> falla (p. ej. 31/02/2025).</td><td>Se rechaza indicando la línea.</td></tr>
+</table>
+
+<div class="box warn"><b>Facturas con errores: dos modos.</b> El enunciado pide no generar el SQL si hay errores, y el extra pide
+un log con las facturas que no se pudieron procesar. Por eso hay dos modos:
+<b>por defecto</b> se descartan las facturas con errores (quedan en el log) y se genera el SQL con las válidas;
+con <code>--estricto</code>, si hay cualquier error <b>no se genera el SQL</b>.
+Códigos de salida: <code>0</code> todo correcto · <code>1</code> hubo facturas rechazadas · <code>2</code> no se generó el SQL.</div>
+
+<h2><span class="n">7</span>Ejecución del script</h2>
+<h3>7.1 Con las 20 facturas del examen</h3>
+
+<div class="term">
+  <div class="term-bar"><span></span><span></span><span></span><b>Windows PowerShell</b></div>
+  <pre><span class="ps">PS C:\Users\saray\EXAMEN_PYTHON_FACTURAS&gt;</span> python build_insert_from_tickets.py facturas/
+<span class="">Facturas leídas: 20  |  procesadas: 20  |  rechazadas: 0</span>
+<span class="ok">SQL generado: insertUnderlineTickets.sql  (20 tickets, 7 empleados, 20 productos)</span>
+<span class="ok">Log: errores_tickets.log</span>
+<span class="ps">PS C:\Users\saray\EXAMEN_PYTHON_FACTURAS&gt;</span> $LASTEXITCODE
+0</pre>
+</div>
+<h3>7.2 Con las facturas de prueba (las 20 originales + 7 con errores provocados + 1 caso de duplicado)</h3>
+
+<div class="term">
+  <div class="term-bar"><span></span><span></span><span></span><b>Windows PowerShell</b></div>
+  <pre><span class="ps">PS C:\Users\saray\EXAMEN_PYTHON_FACTURAS&gt;</span> python build_insert_from_tickets.py pruebas_errores/ -o pruebas_errores/salida_pruebas.sql --log pruebas_errores/salida_pruebas.log
+<span class="">Facturas leídas: 28  |  procesadas: 21  |  rechazadas: 7</span>
+<span class="err">  [ERROR] factura_901_error_vacio.txt: archivo vacío</span>
+<span class="err">  [ERROR] factura_902_error_cantidad_no_numerica.txt: línea 16: la cantidad &#x27;tres&#x27; del producto &#x27;Sal Fina 1kg&#x27; no es numérica</span>
+<span class="err">  [ERROR] factura_903_error_falta_total.txt: formato incorrecto, faltan datos: TOTAL A PAGAR</span>
+<span class="err">  [ERROR] factura_904_error_ticket_repetido.txt: número de ticket 20010007 repetido (ya está en factura_007.txt)</span>
+<span class="err">  [ERROR] factura_905_error_cajero_repetido_otro_nombre.txt: código de cajero 015 repetido con otro nombre: &#x27;Pedro Sánchez&#x27; (ya registrado como &#x27;Juan Pérez&#x27;)</span>
+<span class="err">  [ERROR] factura_906_error_importes_no_cuadran.txt: la suma de las líneas (25.42) no coincide con el SUBTOTAL (29.99)</span>
+<span class="err">  [ERROR] factura_908_error_fecha_imposible.txt: línea 6: fecha u hora imposible &#x27;31/02/2025 17:01&#x27;</span>
+<span class="ok">SQL generado: pruebas_errores\salida_pruebas.sql  (21 tickets, 7 empleados, 20 productos)</span>
+<span class="ok">Log: pruebas_errores\salida_pruebas.log</span>
+<span class="ps">PS C:\Users\saray\EXAMEN_PYTHON_FACTURAS&gt;</span> $LASTEXITCODE
+1</pre>
+</div>
+<p class="small">La factura <code>factura_907_ok_producto_en_mayusculas.txt</code> sí se procesa: su producto «CAFÉ&nbsp; MOLIDO 250G»
+se reconoce como el ya existente y el catálogo sigue teniendo 20 productos.</p>
+
+<h3>7.3 Log generado (extra para el 10)</h3>
+<pre class="code">======================================================================
+LOG DE PROCESAMIENTO DE FACTURAS - 19/11/2026 17:39:59
+Carpeta: C:\Users\saray\EXAMEN_PYTHON_FACTURAS\pruebas_errores
+======================================================================
+Facturas leídas:     28
+Facturas procesadas: 21
+Facturas rechazadas: 7
+SQL generado:        sí
+
+FACTURAS NO PROCESADAS
+----------------------------------------------------------------------
+[ERROR] factura_901_error_vacio.txt: archivo vacío
+[ERROR] factura_902_error_cantidad_no_numerica.txt: línea 16: la cantidad &#x27;tres&#x27; del producto &#x27;Sal Fina 1kg&#x27; no es numérica
+[ERROR] factura_903_error_falta_total.txt: formato incorrecto, faltan datos: TOTAL A PAGAR
+[ERROR] factura_904_error_ticket_repetido.txt: número de ticket 20010007 repetido (ya está en factura_007.txt)
+[ERROR] factura_905_error_cajero_repetido_otro_nombre.txt: código de cajero 015 repetido con otro nombre: &#x27;Pedro Sánchez&#x27; (ya registrado como &#x27;Juan Pérez&#x27;)
+[ERROR] factura_906_error_importes_no_cuadran.txt: la suma de las líneas (25.42) no coincide con el SUBTOTAL (29.99)
+[ERROR] factura_908_error_fecha_imposible.txt: línea 6: fecha u hora imposible &#x27;31/02/2025 17:01&#x27;
+
+AVISOS
+----------------------------------------------------------------------
+(ninguno)
+
+DUPLICADOS EVITADOS (reutilizados en vez de insertarse otra vez)
+----------------------------------------------------------------------
+Empleados: 14  |  Productos: 143  |  Sucursales: 20
+</pre>
+
+<h2 class="pb"><span class="n">8</span>Vista parcial de insertUnderlineTickets.sql</h2>
+<pre class="code sql"><span class="c">-- =====================================================================</span>
+<span class="c">-- insertUnderlineTickets.sql</span>
+<span class="c">-- Generado por build_insert_from_tickets.py el 19/11/2026 17:39:58</span>
+<span class="c">-- Tickets: 20 | Empleados: 7 | Productos: 20 | Sucursales: 1</span>
+<span class="c">-- =====================================================================</span>
+
+<span class="c">-- (...) DROP TABLE / CREATE TABLE de las 7 tablas (...)</span>
+
+<span class="k">CREATE TABLE</span> ticket (
+    numero_ticket   VARCHAR(20)   <span class="k">PRIMARY KEY</span>,
+    fecha           DATE          <span class="k">NOT NULL</span>,
+    hora            TIME          <span class="k">NOT NULL</span>,
+    id_sucursal     INT           <span class="k">NOT NULL</span>,
+    codigo_empleado VARCHAR(10)   <span class="k">NOT NULL</span>,
+    subtotal        DECIMAL(10,2) <span class="k">NOT NULL</span>,
+    porcentaje_iva  DECIMAL(5,2)  <span class="k">NOT NULL</span>,
+    iva             DECIMAL(10,2) <span class="k">NOT NULL</span>,
+    total           DECIMAL(10,2) <span class="k">NOT NULL</span>,
+    <span class="k">FOREIGN KEY</span> (id_sucursal)     <span class="k">REFERENCES</span> sucursal (id_sucursal),
+    <span class="k">FOREIGN KEY</span> (codigo_empleado) <span class="k">REFERENCES</span> empleado (codigo_empleado)
+);
+
+<span class="c">-- (...)</span>
+
+<span class="k">BEGIN;</span>
+
+<span class="c">-- Sucursales</span>
+<span class="k">INSERT INTO</span> sucursal (id_sucursal, nombre, direccion, ciudad, cif, telefono) <span class="k">VALUES</span>
+    (1, <span class="s">&#x27;SUPERMERCADOS EL AHORRO&#x27;</span>, <span class="s">&#x27;Av. Principal #123&#x27;</span>, <span class="s">&#x27;Madrid&#x27;</span>, <span class="s">&#x27;B12345678&#x27;</span>, <span class="s">&#x27;910123456&#x27;</span>);
+
+<span class="c">-- Empleados (cajeros, sin repetir)</span>
+<span class="k">INSERT INTO</span> empleado (codigo_empleado, nombre) <span class="k">VALUES</span>
+    (<span class="s">&#x27;011&#x27;</span>, <span class="s">&#x27;Carlos Ruiz&#x27;</span>),
+    (<span class="s">&#x27;015&#x27;</span>, <span class="s">&#x27;Juan Pérez&#x27;</span>),
+    (<span class="s">&#x27;019&#x27;</span>, <span class="s">&#x27;Sofía Martínez&#x27;</span>),
+<span class="c">    -- (... 4 filas más ...)</span>
+
+<span class="c">-- Productos (catálogo, sin repetir descripciones)</span>
+<span class="k">INSERT INTO</span> producto (id_producto, descripcion, unidad_medida) <span class="k">VALUES</span>
+    (1, <span class="s">&#x27;Pasta Spaghetti 500g&#x27;</span>, <span class="s">&#x27;ud&#x27;</span>),
+    (2, <span class="s">&#x27;Café Molido 250g&#x27;</span>, <span class="s">&#x27;ud&#x27;</span>),
+    (3, <span class="s">&#x27;Arroz Redondo 1kg&#x27;</span>, <span class="s">&#x27;ud&#x27;</span>),
+<span class="c">    -- (... 17 filas más ...)</span>
+
+<span class="c">-- Métodos de pago</span>
+<span class="k">INSERT INTO</span> metodo_pago (id_metodo_pago, nombre) <span class="k">VALUES</span>
+    (1, <span class="s">&#x27;TARJETA&#x27;</span>),
+    (2, <span class="s">&#x27;EFECTIVO&#x27;</span>);
+
+<span class="c">-- Tickets (cabecera)</span>
+<span class="k">INSERT INTO</span> ticket (numero_ticket, fecha, hora, id_sucursal, codigo_empleado, subtotal, porcentaje_iva, iva, total) <span class="k">VALUES</span>
+    (<span class="s">&#x27;20010001&#x27;</span>, <span class="s">&#x27;2025-09-11&#x27;</span>, <span class="s">&#x27;17:01:00&#x27;</span>, 1, <span class="s">&#x27;015&#x27;</span>, 25.42, 21, 5.34, 30.76),
+    (<span class="s">&#x27;20010002&#x27;</span>, <span class="s">&#x27;2025-09-12&#x27;</span>, <span class="s">&#x27;18:26:00&#x27;</span>, 1, <span class="s">&#x27;033&#x27;</span>, 28.10, 21, 5.90, 34.00),
+    (<span class="s">&#x27;20010003&#x27;</span>, <span class="s">&#x27;2025-09-13&#x27;</span>, <span class="s">&#x27;10:15:00&#x27;</span>, 1, <span class="s">&#x27;011&#x27;</span>, 22.30, 21, 4.68, 26.98),
+<span class="c">    -- (... 17 filas más ...)</span>
+
+<span class="c">-- Líneas de ticket</span>
+<span class="k">INSERT INTO</span> ticket_linea (numero_ticket, num_linea, id_producto, cantidad, precio_unitario, importe) <span class="k">VALUES</span>
+    (<span class="s">&#x27;20010001&#x27;</span>, 1, 1, 2, 0.85, 1.70),
+    (<span class="s">&#x27;20010001&#x27;</span>, 2, 2, 1, 3.80, 3.80),
+    (<span class="s">&#x27;20010001&#x27;</span>, 3, 3, 2, 1.15, 2.30),
+<span class="c">    -- (... 154 filas más ...)</span>
+
+<span class="c">-- Pagos</span>
+<span class="k">INSERT INTO</span> pago (id_pago, numero_ticket, id_metodo_pago, importe, autorizacion) <span class="k">VALUES</span>
+    (1, <span class="s">&#x27;20010001&#x27;</span>, 1, 30.76, <span class="s">&#x27;741486&#x27;</span>),
+    (2, <span class="s">&#x27;20010002&#x27;</span>, 2, 34.00, NULL),
+    (3, <span class="s">&#x27;20010003&#x27;</span>, 2, 26.98, NULL),
+<span class="c">    -- (... 17 filas más ...)</span>
+
+<span class="k">COMMIT;</span></pre>
+<p class="small">El script se ha importado en SQLite con las claves foráneas activadas: se cargan 1 sucursal, 7 empleados, 20 productos,
+2 métodos de pago, 20 tickets, 157 líneas y 20 pagos, sin ninguna violación de integridad. Las sentencias usan SQL estándar
+(compatible con MySQL/MariaDB, PostgreSQL y SQLite).</p>
+
+</body></html>
